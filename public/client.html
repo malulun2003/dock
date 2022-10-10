@@ -1,0 +1,244 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" type="client"/>
+  <title>My Video Chat</title>
+  <style type="text/css">
+    input:read-only,
+    textarea:read-only {
+      background-color: #CCC;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    #div_join_screen {
+      width: 100%;
+      /* height: 100%; */
+      display: flex;
+      align-items: center;
+      /* z-index: 10; */
+      background-color: #888;
+    }
+  </style>
+</head>
+
+<body style="display: flex; flex-direction: column;">
+  <!-- <h1 style="margin: 8px">client</h1> -->
+
+  <div style="flex: 1;">
+    <div id="div_join_screen" style="flex-flow:column;">
+      <!-- エンターキーによるボタン押下を行うために、<button>ではなく<form>と<input type="submit">を使用。
+            ボタン押下(=submit)時にページリロードが行われないように、onsubmitの設定の最後に"return false;"を追加。-->
+      <form action="" onsubmit="onsubmitButton_Create(); return false;" style="text-align: center; width: 100%;">
+        <!-- User name ( Nick name )<br />
+        <input type="text" id="input_username" placeholder="Enter User name" autofocus><br><br> -->
+
+        <!-- Room name - optional<br />
+                <input type="text" id="input_roomname" placeholder="Enter Room name"><br><br>
+                <input type="submit" value="Create" /> -->
+      </form>
+      <hr width="100%">
+      <div id="div_room">
+      </div>
+    </div>
+
+    <div id="div_chat_screen" style="display:none; flex-direction: column;" >
+      <input type="checkbox" id="checkbox_camera" onclick="onclickCheckbox_CameraMicrophone()" hidden><!-- Camera -->
+      <input type="checkbox" id="checkbox_microphone" onclick="onclickCheckbox_CameraMicrophone()">Mic
+      <br />
+      Dock : <input type="text" id="text_roomname" readonly="readonly">
+      <div class="canvas-layer" id="div_userinfo" style="height:480px;">
+        <div border="1px solid black">
+          <input type="text" id="text_username" readonly="readonly" hidden="hidden">
+          <video id="video_local" width="640" height="480" style="border: 1px solid black;display:none;" autoplay></video>
+        </div>
+        <div id="outer-video">
+          <!-- <span class="canvas" id="outer" style="width:640px; height:480px">Loading...</span> -->
+        </div>
+        <canvas class="canvas" id="points" width="640px" height="480px"></canvas>
+      </div>
+
+      <!-- エンターキーによるボタン押下を行うために、<button>ではなく<form>と<input type="submit">を使用。
+            ボタン押下(=submit)時にページリロードが行われないように、onsubmitの設定の最後に"return false;"を追加。-->
+      <div style="display:none;">
+        <form action="" onsubmit="onsubmitButton_SendMessage(); return false;">
+          <input type="text" id="text_message_for_send" size="40" />
+          <input type="submit" value="Send message" />
+        </form>
+        <textarea id="textarea_message_received" rows="10" cols="60" readonly="readonly"></textarea>  
+      </div>
+
+      <br />
+      <button onclick="onclickButton_LeaveChat()">Leave</button>
+
+      <div>
+        <span id="screen" style="width:640px; height:480px">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="./client.js"></script>
+  <script src="glfx.js"></script>
+  <script>
+
+    var canvas_fx;
+    var timer;
+    var p_ctx;
+    var dx, dy;
+    var points, tsc;
+    var dragging = [false, false, false, false];
+    
+    const drawCanvas = (framerate) => {
+      const draw = function () {
+        // var camera = document.querySelector('#sample');
+        // console.log(camera);
+
+        let v = document.getElementsByClassName('dock-video');
+        if (v.length > 0) {
+          if (v[0].played.length == 0) {
+            return;
+          }
+        } else {
+          return;
+        }
+
+        ctx_tex = canvas_fx.texture(v[0]);
+        canvas_fx.draw(ctx_tex).perspective(
+          [dx[0], dy[0], dx[1], dy[1], dx[2], dy[2], dx[3], dy[3]],
+          // [100, 100, 640, 0, 0, 480, 640, 480],
+          [0, 0, 640, 0, 0, 480, 640, 480]
+        ).update();
+        drawMark();
+      }
+      if (timer) clearInterval(timer);
+      timer = setInterval(draw, framerate);
+    };
+
+    window.onload = function () {
+      points = document.getElementById("points");
+      p_ctx = points.getContext('2d');
+      points.addEventListener('mousedown', onDown, false);
+      points.addEventListener('mousemove', onMove, false);
+      points.addEventListener('mouseup', onUp, false);
+      try {
+        canvas_fx = fx.canvas();
+      } catch (e) {
+        alert(e);
+        return;
+      }
+      var sc = document.getElementById('screen');
+      canvas_fx.replace(sc);
+      const init = async (_fr) => {
+        // const constrains = { video: { width: 640, height: 480, top: 500 }, audio: false };
+        // await navigator.mediaDevices.getUserMedia(constrains)
+        //   .then(async (stream) => {
+        //     sample.srcObject = stream;
+        //     await sample.play();
+        //     drawCanvas(_fr);
+        //   }
+        // );
+        drawCanvas(_fr);
+      };
+      init(100);  /* ms */
+      drag_init();
+      p_ctx = points.getContext('2d');
+    };
+
+    function drag_init() {
+      objWidth = 40;
+      objHeight = 40;
+      dx = [0, 0, 0, 0];
+      dy = [0, 0, 0, 0];
+      for (let i = 0; i < 4; i++) {
+        dx[i] = 20 + (i % 2) * (points.width - 40);
+        dy[i] = 20 + ((i & 2) >> 1) * (points.height - 40);
+      }
+      drawMark();
+    }
+
+    function drawMark() {
+      p_ctx.clearRect(0, 0, points.width, points.height); // キャンバスをクリア
+      draw_mark();
+    }
+
+    function draw_mark() {
+      let txt = ["UL", "UR", "DL", "DR"];
+      for (let i = 0; i < 4; i++) {
+        p_ctx.beginPath();
+        p_ctx.arc(dx[i], dy[i], 10, 0, Math.PI * 2, true);
+        p_ctx.strokeStyle = 'red';
+        p_ctx.lineWidth = 2;
+        p_ctx.font = '8pt Arial';
+        p_ctx.textAlign = "center";
+        p_ctx.textBaseline = "middle";
+        p_ctx.fillStyle = "rgb(255, 255, 255)";
+        p_ctx.fill();
+        p_ctx.stroke();
+        p_ctx.fillStyle = 'rgb(0, 0, 0)';
+        p_ctx.fillText(txt[i], dx[i], dy[i]);
+        p_ctx.stroke();
+      }
+    }
+
+    function onDown(e) {
+        let x = e.clientX - points.getBoundingClientRect().left;
+        let y = e.clientY - points.getBoundingClientRect().top;
+        for (let i = 0; i < 4; i++) {
+            if (dx[i] - objWidth / 2 < x && (dx[i] + objWidth / 2) > x && dy[i] - objHeight / 2 < y && (dy[i] + objHeight / 2) > y) {
+                dragging[i] = true;
+                relX = dx[i] - x;
+                relY = dy[i] - y;
+                break;
+            }
+        }
+    }
+
+    function onMove(e) {
+        let x = e.clientX - points.getBoundingClientRect().left;
+        let y = e.clientY - points.getBoundingClientRect().top;
+        for (let i = 0; i < 4; i++) {
+            if (dragging[i]) {
+                dx[i] = x + relX;
+                dy[i] = y + relY;
+                drawMark();
+            }
+        }
+    }
+
+    function onUp(e) {
+        dragging = [false, false, false, false]; // ドラッグ終了
+    }
+  </script>
+  <style type="text/css">
+    body {
+        margin: 0px;
+    }
+
+    .canvas-layer {
+        position: relative;
+    }
+
+    .canvas {
+        position: absolute;
+        left: 0;
+        top: 0;
+        border: 0;
+        max-width: 100%;
+        box-sizing: content-box;
+        padding: 0;
+        margin: 0;
+    }
+
+    .wrap {
+        display: flex;
+        flex-flow: column;
+    }
+  </style>
+</body>
+
+</html>
