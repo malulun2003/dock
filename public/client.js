@@ -296,10 +296,11 @@ function appendRoomInfoElement(room) {
   }
   // form.innerHTML = room[0] + " <" + room[1] + ">";
   if (room[1] <= 1) {
-    form.innerHTML = room[0];
+    form.innerHTML = room[0]+"  ";
     var reqElm = document.createElement('input');
     reqElm.type = 'submit';
     reqElm.value = 'join';
+    reqElm.className = "button is-primary is-small";
     form.appendChild(reqElm);
   } else {
     form.innerHTML = room[0] + " [occupied]";
