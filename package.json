@@ -1,4 +1,6 @@
 {
+  "name": "dock",
+  "version": "1.0.0",
   "dependencies": {
     "express": "^4.18.2",
     "serve-favicon": "^2.5.0",

@@ -68,8 +68,16 @@
         </form>
         <textarea id="textarea_message_received" rows="10" cols="60" readonly="readonly"></textarea>  
       </div>
+      <div class="select is-small">
+        <select id="resolution">
+          <option value="0" selected>1280x720</option>
+          <option value="1">1920x720</option>
+          <option value="2">1920x1080</option>
+        </select>
+      </div>
+      <label>touch coodinate</label>
       <div style="margin:8px;">
-        <span id="screen" style="width:640px; height:480px">Loading...</span>
+        <span id="screen" style="width:640px; height:481px">Loading...</span>
       </div>
       <button class="button is-danger" onclick="onclickButton_LeaveChat()">Leave</button>
     </div>
@@ -87,7 +95,9 @@
     var dx, dy;
     var points, tsc;
     var dragging = [false, false, false, false];
-    
+    var capture_width = 1280;
+    var capture_height = 720;
+
     const drawCanvas = (framerate) => {
       const draw = function () {
         // var camera = document.querySelector('#sample');
@@ -107,6 +117,7 @@
           [dx[0], dy[0], dx[1], dy[1], dx[2], dy[2], dx[3], dy[3]],
           // [100, 100, 640, 0, 0, 480, 640, 480],
           [0, 0, 640, 0, 0, 480, 640, 480]
+          // [0, 0, capture_width, 0, 0, capture_height, capture_width, capture_height]
         ).update();
         drawMark();
       }
@@ -128,6 +139,7 @@
       }
       var sc = document.getElementById('screen');
       canvas_fx.replace(sc);
+      canvas_fx.id = "screen0";
       const init = async (_fr) => {
         // const constrains = { video: { width: 640, height: 480, top: 500 }, audio: false };
         // await navigator.mediaDevices.getUserMedia(constrains)
@@ -142,6 +154,21 @@
       init(100);  /* ms */
       drag_init();
       p_ctx = points.getContext('2d');
+
+      const sc0 = document.getElementById("screen0");
+      sc0.addEventListener("click", e=>{
+        const rect = e.target.getBoundingClientRect();
+        const viewX = e.clientX - rect.left, viewY = e.clientY - rect.top;
+        const scaleWidth = sc0.clientWidth / sc0.width, scaleHeight = sc0.clientHeight / sc0.height;
+        const canvasX = Math.floor(viewX / scaleWidth), canvasY = Math.floor(viewY / scaleHeight);
+
+        // クリック情報の出力
+        console.log(canvasX, canvasY);
+        // クリック情報の出力（マネージ後）
+        let cap_x = canvasX * capture_width /640;
+        let cap_y = canvasY * capture_height /480;
+        console.log(cap_x, cap_y);
+      });
     };
 
     function drag_init() {
@@ -207,6 +234,30 @@
 
     function onUp(e) {
         dragging = [false, false, false, false]; // ドラッグ終了
+    }
+
+    var reso = document.getElementById('resolution');
+    reso.addEventListener('change', valueChange);
+    function valueChange(e) {
+      console.log(reso.value);
+      switch(reso.value) {
+      case '0':
+        capture_width = 1280;
+        capture_height = 720;
+        break;
+      case '1':
+        capture_width = 1920;
+        capture_height = 720;
+        break;
+      case '2':
+        capture_width = 1920;
+        capture_height = 1080;
+        break;
+      default:
+        capture_width = 1280;
+        capture_height = 720;
+        break;
+      }
     }
   </script>
   <style type="text/css">
