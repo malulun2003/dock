@@ -19,12 +19,20 @@ const io = socketIO(server);
 // 定数
 const PORT = process.env.PORT || 1337;
 
+// database
+var db = {};
+
 // 接続時の処理
 // ・サーバーとクライアントの接続が確立すると、
 // 　サーバー側で、"connection"イベント
 // 　クライアント側で、"connect"イベントが発生する
 io.on("connection", (socket) => {
     console.log("connection : ", socket.id);
+    // console.log(socket)
+
+    var address = socket.handshake.address;
+    // console.log("New connection from " + address.address + ":" + address.port);
+    console.log("New connection from " + address);
 
     // 切断時の処理
     // ・クライアントが切断したら、サーバー側では"disconnect"イベントが発生する
@@ -58,7 +66,9 @@ io.on("connection", (socket) => {
       if (!strRoomName) {
         strRoomName = "**********NoName**********"
       }
-      console.log("- Room name = ", strRoomName);
+      console.log("- Room name = ", strRoomName, address);
+      db[strRoomName] = address;
+      console.log(db);
 
       // ルームへの入室
       socket.join(strRoomName);
@@ -85,21 +95,33 @@ io.on("connection", (socket) => {
     });
     socket.on("rooms", () => {
       let is_rooms = [];
-      console.log("rooms:>>>>>" + socket.id);
-      console.log(io.sockets.adapter.rooms);
+      // console.log("rooms:>>>>>" + socket.id);
+      // console.log(io.sockets.adapter.rooms);
       let keys = io.sockets.adapter.rooms.keys();
       for (var key of keys) {
-        console.log("val:" + key);
+        // console.log("val:" + key);
         let values = io.sockets.adapter.rooms.get(key);
-        console.log("sss>" + values.size);
+        // console.log("sss>" + values.size);
         // console.log("sss>"+values[0]);
         if (values.size == 1 && values.has(key/*socket.id*/)) {
-          console.log("just id");
+          // console.log("just id");
         } else {
-          is_rooms.push([key, values.size]);
+          let adr = db[key];
+          let ip;
+          console.log(db);
+          if (adr == "::1") {
+            ip = "localhost";
+          } else {
+            ip = adr.match(/[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*/);
+            if (ip == null) {
+              ip = "not found"
+            }
+          }
+          console.log("IP="+ip);
+          is_rooms.push([key, values.size, ip]);
         }
       };
-      console.log(is_rooms);
+      // console.log(is_rooms);
       socket.emit("rooms_res", JSON.stringify(is_rooms));
       // var rooms = io.sockets.adapter.rooms;
       // console.log(io.sockets.clients);

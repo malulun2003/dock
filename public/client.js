@@ -277,7 +277,7 @@ g_socket.on("rooms_res", (room_list) => {
   let r = JSON.parse(room_list);
   // console.log(r.length);
   for (let rm of r) {
-    console.log(rm[0], rm[1]);
+    console.log(rm[0], rm[1], rm[2]);
     if (rm[1] >= 2) {
       console.log(rm[0], rm[1], "can not enter");
     } else {
@@ -296,14 +296,14 @@ function appendRoomInfoElement(room) {
   }
   // form.innerHTML = room[0] + " <" + room[1] + ">";
   if (room[1] <= 1) {
-    form.innerHTML = room[0]+"  ";
+    form.innerHTML = room[0]+" ("+room[2]+")  ";
     var reqElm = document.createElement('input');
     reqElm.type = 'submit';
     reqElm.value = 'join';
     reqElm.className = "button is-primary is-small";
     form.appendChild(reqElm);
   } else {
-    form.innerHTML = room[0] + " [occupied]";
+    form.innerHTML = room[0]+" ("+room[2]+") [occupied]";
   }
   document.getElementById("div_room").appendChild(form);
 }
